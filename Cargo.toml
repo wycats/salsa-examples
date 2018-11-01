@@ -1,0 +1,9 @@
+[package]
+name = "salsa-test"
+version = "0.1.0"
+authors = ["Yehuda Katz <wycats@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+salsa = "0.7.0"
+derive-new = "0.5.5"

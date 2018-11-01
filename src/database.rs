@@ -7,29 +7,33 @@ pub struct ArrayId(pub usize);
 pub struct StringId(pub usize);
 
 salsa::query_group! {
-    pub trait ConcatDatabase: salsa::Database {
-        fn input_string(key: StringId) -> Arc<String> {
-            type InputString;
+    pub trait StringDatabase: salsa::Database {
+        fn string_by_id(key: StringId) -> Arc<String> {
+            type InternedString;
             storage input;
-        }
-
-        fn input_array(key: ArrayId) -> Arc<Vec<StringId>> {
-            type Array;
-            storage input;
-        }
-
-        fn output_string(key: ArrayId) -> Arc<String> {
-            type OutputString;
         }
     }
 }
 
-fn output_string(db: &impl ConcatDatabase, key: ArrayId) -> Arc<String> {
-    let array = db.input_array(key);
+salsa::query_group! {
+    pub trait ArrayDatabase: StringDatabase {
+        fn array_by_id(key: ArrayId) -> Arc<Vec<StringId>> {
+            type InternedArray;
+            storage input;
+        }
+
+        fn concat(key: ArrayId) -> Arc<String> {
+            type ConcatString;
+        }
+    }
+}
+
+fn concat(db: &impl ArrayDatabase, key: ArrayId) -> Arc<String> {
+    let array = db.array_by_id(key);
     let mut out = String::new();
 
     for &i in array.iter() {
-        out.push_str(&db.input_string(i));
+        out.push_str(&db.string_by_id(i));
     }
 
     Arc::new(out)
@@ -40,8 +44,6 @@ crate struct DatabaseStruct {
     runtime: salsa::Runtime<DatabaseStruct>,
 }
 
-impl DatabaseStruct {}
-
 impl salsa::Database for DatabaseStruct {
     fn salsa_runtime(&self) -> &salsa::Runtime<DatabaseStruct> {
         &self.runtime
@@ -50,10 +52,13 @@ impl salsa::Database for DatabaseStruct {
 
 salsa::database_storage! {
     pub struct DatabaseStorage for DatabaseStruct {
-        impl ConcatDatabase {
-            fn input_string() for InputString;
-            fn input_array() for Array;
-            fn output_string() for OutputString;
+        impl StringDatabase {
+            fn string_by_id() for InternedString;
+        }
+
+        impl ArrayDatabase {
+            fn array_by_id() for InternedArray;
+            fn concat() for ConcatString;
         }
     }
 }
